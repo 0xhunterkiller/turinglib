@@ -1,0 +1,9 @@
+[project]
+name = "turinglib"
+version = "0.1.0"
+description = "A minimal Turing Machine simulation library"
+authors = [{ name = "Saai Sudarsanan" }]
+requires-python = ">=3.11"
+
+[project.urls]
+homepage = "https://github.com/0xhunterkiller/turinglib"

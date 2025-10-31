@@ -1,4 +1,5 @@
-from typing import Callable
+from typing import Callable, Optional
+from enum import Enum
 
 class TapeVar():
     """
@@ -6,11 +7,11 @@ class TapeVar():
     """
     __slots__ = ("notation",)
 
-    def __init__(self, notation: int):
+    def __init__(self, notation: Optional[int]):
         self.notation = notation
 
     def __repr__(self):
-        return str(self.notation)
+        return "_" if self.notation is None else str(self.notation)
     
     def __eq__(self, other):
         return isinstance(other, TapeVar) and self.notation == other.notation
@@ -18,7 +19,9 @@ class TapeVar():
     def __hash__(self):
         return hash(self.notation)
 
-class Action():
+BLANK = TapeVar(None)
+
+class ActionPrimitive():
     """
     the action to perform on the head, like R or L
 
@@ -36,6 +39,11 @@ class Action():
     def perform(self, head):
         return self.op(head)
 
+class Action(Enum):
+    R = ActionPrimitive("R", lambda h: h + 1)
+    L = ActionPrimitive("L", lambda h: h - 1)
+    N = ActionPrimitive("N", lambda h: h)
+
 class State():
     """
     a state in the state machine
@@ -51,20 +59,24 @@ class State():
     def __repr__(self):
         return str(self.notation)
     
-    def update(self, tv:TapeVar, head: int) -> tuple["State | None", TapeVar, int]:
+    def update(self, tv:TapeVar, head: int, implicit_blank_halt: bool) -> tuple["State | None", TapeVar, int]:
+        if implicit_blank_halt and tv == BLANK and BLANK not in self.transitions:
+            return None, tv, head
         result = self.transitions.get(tv, None)
         if result is None:
             return None, tv, head
         nextState, newtv, action = result
-        return nextState, newtv, action.perform(head)
+        return nextState, newtv, action.value.perform(head)
     
 
 class StateMachine():
-    def __init__(self, start: State, inputTape: list[TapeVar], startPoint: int):
+    def __init__(self, start: State, inputTape: list[TapeVar], startPoint: int, verbose: bool = True, implicit_blank_halt: bool = True):
         assert 0 <= startPoint < len(inputTape)
         assert isinstance(inputTape[startPoint], TapeVar)
         self.start = start
         self.tape = inputTape
+        self.implicit_blank_halt = implicit_blank_halt
+        self.verbose = verbose
 
         # managed by the TM
         self.current = start
@@ -76,61 +88,74 @@ class StateMachine():
     def step(self):
         # Read the current 
         tape_value = self.tape[self.head]
-        nextState, newtv, newhead = self.current.update(tape_value, self.head)
-
-        if newhead < 0 or newhead >= len(self.tape):
-            print("========== Machine has Halted : DUE TO TAPE ERROR ==========")
-            return False
+        nextState, newtv, newhead = self.current.update(tape_value, self.head, self.implicit_blank_halt)
 
         if nextState is None:
             print("========== Machine has Halted : DUE TO NO TRANSITION AVAILABLE ==========")
             self.current = None
+            print(self)
             return False
         
         self.current = nextState
+
+        if newhead < 0:
+            self.tape.insert(0, newtv)
+            newhead = 0
+
+        elif newhead >= len(self.tape):
+            if len(self.tape) > 10**6:
+                raise MemoryError("Tape exceeded safe length")
+            self.tape.append(newtv)
+
         self.tape[self.head] = newtv
         self.head = newhead
 
-        print(self)
+        if self.verbose:
+            print(self)
         return True
     
+    def run(self, max_steps: int = 1000):
+        for _ in range(max_steps):
+            if not self.step():
+                break
+        print(f"Machine halted after {_+1} steps.")
+    
 if __name__ == "__main__":
-    print("=== Turing Machine Simulation Test ===")
+    print("=== Turing Machine Demo ===")
 
     # Define tape symbols
     zero = TapeVar(0)
     one = TapeVar(1)
 
-    # Define actions (move right or left)
-    R = Action("R", lambda x: x + 1)
-    L = Action("L", lambda x: x - 1)
-    N = Action("N", lambda x: x)  # No movement
+    # Define actions
+    R, L, N = Action.R, Action.L, Action.N
 
-    # Create placeholder for states (we’ll fill transitions after)
+    # Define states
     q0 = State("q0", {})
-    q1 = State("q1", {})
     halt = State("HALT", {})
 
-    # Define transitions:
-    # q0: if reads 0 → write 1, move right, go to q1
-    # q0: if reads 1 → no change, no move, halt
+    # Define transitions
+    # In state q0:
+    #   - If tape reads 0 → write 1, move right, go to HALT
+    #   - If tape reads 1 → do nothing (N), go to HALT
     q0.transitions = {
-        zero: (q1, one, R),
-        one: (halt, one, N)
+        zero: (halt, one, R),
+        one: (halt, one, N),
     }
 
-    # q1 has no transitions (forces halt)
-    q1.transitions = {}
+    # Build initial tape (single 0)
+    tape = [TapeVar(0)]
 
-    # Build the input tape and machine
-    tape = [TapeVar(0), TapeVar(0), TapeVar(1)]
-    machine = StateMachine(start=q0, inputTape=tape, startPoint=0)
+    # Create the machine
+    tm = StateMachine(start=q0, inputTape=tape, startPoint=0, verbose=True)
 
-    print("Initial:", machine)
+    print("\n--- Initial Configuration ---")
+    print(f"State={tm.current}, Head={tm.head}, Tape={tm.tape}")
 
     # Run until halt
-    while machine.step():
-        pass
+    tm.run()
 
-    print("Final tape:", [cell.notation for cell in machine.tape])
+    print("\n--- Final Configuration ---")
+    print(f"State={tm.current}, Head={tm.head}")
+    print("Final Tape:", [cell.notation for cell in tm.tape])
     print("=== End of Simulation ===")

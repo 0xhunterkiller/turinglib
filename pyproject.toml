@@ -1,9 +1,49 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "turinglib"
 version = "0.1.0"
-description = "A minimal Turing Machine simulation library"
-authors = [{ name = "Saai Sudarsanan" }]
+description = "A minimal Turing Machine simulation library."
+authors = [
+    { name = "Saai Sudarsanan" }
+]
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
+keywords = ["turing-machine", "computation", "automata", "simulation"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Education",
+    "Topic :: Software Development :: Libraries"
+]
 
 [project.urls]
-homepage = "https://github.com/0xhunterkiller/turinglib"
+Homepage = "https://github.com/0xhunterkiller/turinglib"
+Source = "https://github.com/0xhunterkiller/turinglib"
+Issues = "https://github.com/0xhunterkiller/turinglib/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "black>=24.0",
+    "mypy>=1.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["turinglib*"]
+exclude = ["tests", "examples"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]

@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 from enum import Enum
 
-class TapeVar():
+
+class TapeVar:
     """
     Represents a single immutable symbol on the Turing Machine's tape.
 
@@ -37,12 +38,12 @@ class TapeVar():
 
     def __init__(self, notation: Optional[str | int]):
         object.__setattr__(self, "_notation", notation)
-    
+
     @property
     def notation(self):
         """Return the stored symbol (or None if blank)."""
         return self._notation
-    
+
     @property
     def is_blank(self) -> bool:
         """True if this symbol represents a blank cell."""
@@ -55,7 +56,7 @@ class TapeVar():
     def __repr__(self):
         """Return '_' for blank, or the symbol itself as a string."""
         return "_" if self.notation is None else str(self.notation)
-    
+
     def __eq__(self, other):
         """Compare two TapeVar objects for symbol equality."""
         return isinstance(other, TapeVar) and self.notation == other.notation
@@ -63,6 +64,7 @@ class TapeVar():
     def __hash__(self):
         """Compute a hash based on the symbol value."""
         return hash(self.notation)
+
 
 BLANK = TapeVar(None)
 """ 
@@ -90,7 +92,8 @@ _
 True
 """
 
-class ActionPrimitive():
+
+class ActionPrimitive:
     """
     Represents a primitive head movement operation on the Turing Machine tape.
 
@@ -116,14 +119,15 @@ class ActionPrimitive():
     def __init__(self, notation: str, op: Callable[[int], int]):
         self.notation = notation
         self.op = op
-    
+
     def __repr__(self):
         """Return the action notation (e.g. 'R', 'L', or 'N')."""
         return str(self.notation)
-    
+
     def perform(self, head):
         """Apply the head movement function and return the new head index."""
         return self.op(head)
+
 
 class Action(Enum):
     """
@@ -152,7 +156,8 @@ class Action(Enum):
     L = ActionPrimitive("L", lambda h: h - 1)
     N = ActionPrimitive("N", lambda h: h)
 
-class State():
+
+class State:
     """
     Represents a single state in the Turing Machine.
 
@@ -166,7 +171,7 @@ class State():
     ----------
     notation : str
         A short label identifying this state (e.g. "q0", "HALT").
-    transitions : dict[TapeVar, tuple[State, TapeVar, Action]]
+    transitions : dict[TapeVar, tuple[State, TapeVar, Union[Action, ActionPrimitive]]]
         A mapping from the currently read TapeVar to a tuple of:
         (next_state, symbol_to_write, head_action).
 
@@ -190,16 +195,21 @@ class State():
     >>> next_state, new_symbol, new_head = q0.update(zero, 0, True)
     """
 
-
-    def __init__(self, notation: str, transitions: dict[TapeVar, tuple[State, TapeVar, Action]]):
+    def __init__(
+        self,
+        notation: str,
+        transitions: dict[TapeVar, tuple[State, TapeVar, Union[Action, ActionPrimitive]]],
+    ):
         self.notation = notation
         self.transitions = transitions
-    
+
     def __repr__(self):
         """Return the state's notation label (e.g. 'q0' or 'HALT')."""
         return str(self.notation)
-    
-    def update(self, tv:TapeVar, head: int, implicit_blank_halt: bool) -> tuple[State | None, TapeVar, int]:
+
+    def update(
+        self, tv: TapeVar, head: int, implicit_blank_halt: bool
+    ) -> tuple[State | None, TapeVar, int]:
         """
         Determine the next machine configuration given the current tape symbol.
 
@@ -218,21 +228,26 @@ class State():
             (next_state, symbol_to_write, new_head_index).
             If no valid transition exists, next_state is None (machine halts).
         """
-        assert all(isinstance(k, TapeVar) for k in self.transitions), "Transition keys must be TapeVar"
+        assert all(
+            isinstance(k, TapeVar) for k in self.transitions
+        ), "Transition keys must be TapeVar"
 
         if implicit_blank_halt and tv == BLANK and BLANK not in self.transitions:
             return None, tv, head
-        
+
         result = self.transitions.get(tv)
-        
+
         if result is None:
             return None, tv, head
-        
+
         next_state, new_tv, action = result
-        
-        return next_state, new_tv, action.value.perform(head)
-    
-class StateMachine():
+
+        # Handle both Enum members and direct ActionPrimitive instances
+        primitive = action.value if isinstance(action, Action) else action
+        return next_state, new_tv, primitive.perform(head)
+
+
+class StateMachine:
     """
     Represents a complete Turing Machine executor.
 
@@ -277,12 +292,13 @@ class StateMachine():
     The machine halts when no valid transition is found for the current symbol.
     """
 
-    def __init__(self, 
-                 start: State, 
-                 input_tape: list[TapeVar], 
-                 start_point: int, 
-                 verbose: bool = True, 
-                 implicit_blank_halt: bool = True
+    def __init__(
+        self,
+        start: State,
+        input_tape: list[TapeVar],
+        start_point: int,
+        verbose: bool = True,
+        implicit_blank_halt: bool = True,
     ):
         assert 0 <= start_point < len(input_tape)
         assert isinstance(input_tape[start_point], TapeVar)
@@ -315,7 +331,9 @@ class StateMachine():
         tape_value = self.tape[index]
 
         # Apply the transition δ(q, a) → (q', b, D)
-        next_state, new_tv, new_head = self.current.update(tape_value, self.head, self.implicit_blank_halt)
+        next_state, new_tv, new_head = self.current.update(
+            tape_value, self.head, self.implicit_blank_halt
+        )
 
         # Halt condition: no valid transition
         if next_state is None:
@@ -332,14 +350,14 @@ class StateMachine():
             if len(self.tape) > 10**6:
                 raise MemoryError("tape length execeed safety limits")
             self.tape.append(BLANK)
-        
+
         # Extend tape left if needed
         while self.tape_begin > new_head:
             if len(self.tape) > 10**6:
                 raise MemoryError("tape length execeed safety limits")
             self.tape.insert(0, BLANK)
             self.tape_begin -= 1
-        
+
         # Update head and state
         self.head = new_head
         self.current = next_state
@@ -348,7 +366,7 @@ class StateMachine():
             print(self)
 
         return True
-    
+
     def run(self, max_steps: int = 1000):
         """
         Run the Turing Machine until halt or until the step limit is reached.

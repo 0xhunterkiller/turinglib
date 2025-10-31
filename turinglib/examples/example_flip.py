@@ -19,7 +19,6 @@ halt = State("HALT", {})
 q0.transitions = {
     zero: (q0, one, R),
     one: (q0, zero, R),
-    BLANK: (halt, BLANK, R),
 }
 
 # Input tape

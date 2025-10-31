@@ -23,6 +23,12 @@ cd turinglib
 pip install -e .[dev]
 ```
 
+### Using uv
+
+```
+uv add git+https://github.com/0xhunterkiller/turinglib.git
+```
+
 ## 1. Overview
 
 `turinglib` is a minimal, mathematically faithful implementation of a **deterministic Turing Machine** in Python.

@@ -7,6 +7,22 @@
 
 ---
 
+## INSTALLATION
+
+### From PyPI (once published)
+
+```
+pip install turinglib
+```
+
+### From source (for development or experimentation)
+
+```
+git clone https://github.com/0xhunterkiller/turinglib.git
+cd turinglib
+pip install -e .[dev]
+```
+
 ## 1. Overview
 
 `turinglib` is a minimal, mathematically faithful implementation of a **deterministic Turing Machine** in Python.

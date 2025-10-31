@@ -1,24 +1,31 @@
-# examples/example_flip.py
-from turinglib.core import TapeVar, State, StateMachine, Action
+"""
+example_flip.py
 
-def main():
-    zero = TapeVar(0)
-    one = TapeVar(1)
-    R, N = Action.R, Action.N
+Demonstrates a simple Turing Machine that flips all bits (0 → 1, 1 → 0)
+on the input tape, then halts at the rightmost blank cell.
+"""
 
-    q0 = State("q0", {})
-    halt = State("HALT", {})
+from turinglib import TapeVar, State, StateMachine, Action, BLANK
 
-    q0.transitions = {
-        zero: (halt, one, R),
-        one: (halt, one, N),
-    }
+# Define symbols
+zero, one = TapeVar(0), TapeVar(1)
+R = Action.R
 
-    tape = [TapeVar(0)]
-    tm = StateMachine(start=q0, inputTape=tape, startPoint=0, verbose=True)
-    tm.run()
+# Define states
+q0 = State("q0", {})
+halt = State("HALT", {})
 
-    print("\nFinal tape:", [cell.notation for cell in tm.tape])
+# Transitions for q0
+q0.transitions = {
+    zero: (q0, one, R),
+    one: (q0, zero, R),
+    BLANK: (halt, BLANK, R),
+}
 
-if __name__ == "__main__":
-    main()
+# Input tape
+tape = [TapeVar(0), TapeVar(1), TapeVar(1), TapeVar(0)]
+
+tm = StateMachine(start=q0, input_tape=tape, start_point=0, verbose=True)
+print("\n--- Starting Bit-Flip Machine ---")
+tm.run()
+print("Final Tape:", [cell.notation for cell in tm.tape])

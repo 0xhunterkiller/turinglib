@@ -1,36 +1,44 @@
-# examples/example_binary_increment.py
-from turinglib.core import TapeVar, State, StateMachine, Action
+"""
+example_binary_increment.py
 
-def main():
-    zero, one = TapeVar(0), TapeVar(1)
-    R, L, N = Action.R, Action.L, Action.N
+Adds 1 to a binary number stored on the tape.
+Example: 1011 → 1100
+"""
 
-    # States
-    q_scan = State("SCAN_RIGHT", {})
-    q_add = State("ADD_ONE", {})
-    q_done = State("HALT", {})
+from turinglib import TapeVar, State, StateMachine, Action, BLANK
 
-    # Transitions:
-    # Move right until blank, then go left to add 1
-    q_scan.transitions = {
-        zero: (q_scan, zero, R),
-        one: (q_scan, one, R),
-        # Found blank: move left, go to ADD_ONE
-        TapeVar(0): (q_add, TapeVar(0), L),
-    }
+zero, one = TapeVar(0), TapeVar(1)
+R, L, N = Action.R, Action.L, Action.N
 
-    # Perform the binary addition
-    q_add.transitions = {
-        zero: (q_done, one, N),     # Add 1 to 0 → done
-        one: (q_add, zero, L),      # Carry: flip 1→0 and move left
-    }
+# States
+move_right = State("MOVE_RIGHT", {})
+add = State("ADD", {})
+carry = State("CARRY", {})
+halt = State("HALT", {})
 
-    # Initial tape: binary 111 (i.e. 7)
-    tape = [TapeVar(1), TapeVar(1), TapeVar(1)]
-    tm = StateMachine(start=q_scan, inputTape=tape, startPoint=0, verbose=True)
-    tm.run(max_steps=50)
+# Move to end of number
+move_right.transitions = {
+    zero: (move_right, zero, R),
+    one: (move_right, one, R),
+    BLANK: (add, BLANK, L),
+}
 
-    print("\nFinal tape:", [t.notation for t in tm.tape])
+# Perform addition
+add.transitions = {
+    zero: (halt, one, N),      # 0 → 1, halt
+    one: (carry, zero, L),     # 1 → 0, carry left
+    BLANK: (halt, one, N),     # overflow → new 1
+}
 
-if __name__ == "__main__":
-    main()
+# Propagate carry
+carry.transitions = {
+    one: (carry, zero, L),
+    zero: (halt, one, N),
+    BLANK: (halt, one, N),
+}
+
+tape = [one, zero, one, one]
+tm = StateMachine(start=move_right, input_tape=tape, start_point=0, verbose=True)
+print("\n--- Binary Increment Machine ---")
+tm.run()
+print("Final Tape:", [cell.notation for cell in tm.tape])
